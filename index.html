@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>press me</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff8fe;
+      font-family: 'Fredoka One', cursive;
+      overflow: hidden;
+      transition: background 0.5s;
+    }
+
+    #scene {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      padding: 2rem;
+      width: 100%;
+    }
+
+    #subtitle {
+      font-size: 16px;
+      color: #c084c8;
+      font-family: sans-serif;
+      letter-spacing: .02em;
+      text-align: center;
+      min-height: 24px;
+      transition: color 0.3s;
+    }
+
+    #btn {
+      font-family: 'Fredoka One', cursive;
+      font-size: 22px;
+      padding: 16px 44px;
+      border-radius: 999px;
+      border: 3px solid #ff9de2;
+      background: #fff0fa;
+      color: #c026a0;
+      cursor: pointer;
+      transition: transform .12s, box-shadow .12s, font-size .35s cubic-bezier(.34,1.56,.64,1), padding .35s, border-color .3s, color .3s, background .3s;
+      box-shadow: 0 4px 0 #ff9de2;
+      position: relative;
+      z-index: 10;
+    }
+
+    #btn:hover { transform: translateY(-2px); }
+    #btn:active { transform: translateY(3px); }
+
+    #word {
+      font-family: 'Fredoka One', cursive;
+      font-size: 0px;
+      opacity: 0;
+      letter-spacing: .05em;
+      transition: font-size .4s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      line-height: 1.1;
+      max-width: 95vw;
+      word-break: break-word;
+      white-space: pre-line;
+    }
+
+    #word.show { opacity: 1; }
+
+    #replay {
+      font-family: 'Fredoka One', cursive;
+      font-size: 16px;
+      padding: 10px 28px;
+      border-radius: 999px;
+      border: 2px solid #d1d5db;
+      background: transparent;
+      color: #9ca3af;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .4s, transform .12s, color .2s, border-color .2s;
+      margin-top: 4px;
+    }
+
+    #replay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    #replay:hover { color: #c026a0; border-color: #ff9de2; transform: scale(1.05); }
+    #replay:active { transform: scale(0.97); }
+
+    #wrapper {
+      position: relative;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    #sparks {
+      position: absolute;
+      pointer-events: none;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .spark {
+      position: absolute;
+      animation: fly 1s ease-out forwards;
+    }
+
+    @keyframes fly {
+      0%   { transform: translate(0,0) scale(1) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--dx), var(--dy)) scale(0) rotate(var(--dr)); opacity: 0; }
+    }
+
+    @keyframes boing {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(1.2) rotate(-3deg); }
+      55%  { transform: scale(0.92) rotate(2deg); }
+      75%  { transform: scale(1.08) rotate(-1deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0) rotate(0); }
+      15%     { transform: translateX(-10px) rotate(-3deg); }
+      35%     { transform: translateX(10px) rotate(3deg); }
+      55%     { transform: translateX(-7px) rotate(-2deg); }
+      75%     { transform: translateX(7px) rotate(2deg); }
+      90%     { transform: translateX(-3px); }
+    }
+
+    @keyframes rubberband {
+      0%   { transform: scaleX(1) scaleY(1); }
+      20%  { transform: scaleX(1.35) scaleY(0.7); }
+      40%  { transform: scaleX(0.75) scaleY(1.25); }
+      60%  { transform: scaleX(1.15) scaleY(0.9); }
+      80%  { transform: scaleX(0.95) scaleY(1.05); }
+      100% { transform: scaleX(1) scaleY(1); }
+    }
+
+    .boing      { animation: boing .55s cubic-bezier(.36,.07,.19,.97); }
+    .shake      { animation: shake .45s ease-in-out; }
+    .rubberband { animation: rubberband .6s ease-in-out; }
+  </style>
+</head>
+<body>
+  <div id="scene">
+    <div id="subtitle">a very innocent little button</div>
+    <div id="wrapper">
+      <div id="sparks"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:24px;position:relative;z-index:2">
+        <button id="btn">press me</button>
+        <div id="word"></div>
+      </div>
+    </div>
+    <button id="replay">start over 🔄</button>
+  </div>
+
+  <script>
+    const btn      = document.getElementById('btn');
+    const word     = document.getElementById('word');
+    const sparks   = document.getElementById('sparks');
+    const subtitle = document.getElementById('subtitle');
+    const replay   = document.getElementById('replay');
+
+    const steps = [
+      {
+        word: 'cunt',
+        size: 'clamp(72px, 18vw, 140px)',
+        gradient: 'linear-gradient(90deg,#ff4e50,#fc913a,#f9d62e,#76b852,#00c3ff,#a855f7)',
+        subtitle: 'there it is 😇',
+        btnLabel: 'again??',
+        btnSize: '22px', btnPad: '16px 44px',
+        btnBorder: '#ff9de2', btnColor: '#c026a0', btnBg: '#fff0fa',
+        bg: '#fff8fe',
+        sparks: { count: 30, dist: 130, size: 10, shapes: ['circle'] },
+        sound: 'ding',
+        anim: 'boing',
+      },
+      {
+        word: 'bitch',
+        size: 'clamp(86px, 21vw, 170px)',
+        gradient: 'linear-gradient(90deg,#f9d62e,#76b852,#00c3ff,#a855f7,#ff69b4,#ff4e50)',
+        subtitle: 'okay bestie 💅',
+        btnLabel: 'one more',
+        btnSize: '26px', btnPad: '18px 52px',
+        btnBorder: '#fb923c', btnColor: '#ea580c', btnBg: '#fff7f0',
+        bg: '#fff9f5',
+        sparks: { count: 46, dist: 170, size: 13, shapes: ['circle','square'] },
+        sound: 'sadtrombone',
+        anim: 'rubberband',
+      },
+      {
+        word: 'fuck you',
+        size: 'clamp(60px, 19vw, 200px)',
+        gradient: 'linear-gradient(90deg,#a855f7,#ff4e50,#fc913a,#f9d62e,#76b852,#00c3ff,#ff69b4)',
+        subtitle: 'the dial-up modem agrees 📠',
+        btnLabel: 'DO IT AGAIN',
+        btnSize: '28px', btnPad: '20px 58px',
+        btnBorder: '#a855f7', btnColor: '#7c3aed', btnBg: '#fdf5ff',
+        bg: '#fdf8ff',
+        sparks: { count: 62, dist: 220, size: 16, shapes: ['circle','square','triangle'] },
+        sound: 'dialup',
+        anim: 'shake',
+      },
+      {
+        word: 'shit fuck\ncunt',
+        size: 'clamp(52px, 16vw, 190px)',
+        gradient: 'linear-gradient(90deg,#ff4e50,#fc913a,#f9d62e,#76b852,#00c3ff,#a855f7,#ff69b4,#ff4e50)',
+        subtitle: 'WRONG. ANSWER. 🚫',
+        btnLabel: 'SEND IT',
+        btnSize: '30px', btnPad: '22px 62px',
+        btnBorder: '#22c55e', btnColor: '#15803d', btnBg: '#f0fff4',
+        bg: '#f0fdf4',
+        sparks: { count: 82, dist: 270, size: 19, shapes: ['circle','square'] },
+        sound: 'buzzer',
+        anim: 'boing',
+      },
+      {
+        word: 'absolute\nfucking\nbellend',
+        size: 'clamp(44px, 14vw, 160px)',
+        gradient: 'linear-gradient(135deg,#ff4e50,#a855f7,#00c3ff,#f9d62e,#76b852,#fc913a)',
+        subtitle: 'WILHELMMMM 😱',
+        btnLabel: 'AGAIN AGAIN AGAIN',
+        btnSize: '26px', btnPad: '22px 48px',
+        btnBorder: '#ef4444', btnColor: '#dc2626', btnBg: '#fff5f5',
+        bg: '#fff5f5',
+        sparks: { count: 110, dist: 340, size: 22, shapes: ['circle','square','triangle'] },
+        sound: 'wilhelm',
+        anim: 'shake',
+      },
+      {
+        word: 'TWAT',
+        size: 'clamp(60px, 18vw, 210px)',
+        gradient: 'linear-gradient(90deg,#f9d62e,#ff4e50,#a855f7,#00c3ff,#76b852,#fc913a,#ff69b4)',
+        subtitle: 'the sirens are coming for you',
+        btnLabel: '...ONE MORE',
+        btnSize: '28px', btnPad: '20px 56px',
+        btnBorder: '#f9d62e', btnColor: '#b45309', btnBg: '#fffdf0',
+        bg: '#fffbeb',
+        sparks: { count: 130, dist: 380, size: 25, shapes: ['circle','square','triangle'] },
+        sound: 'siren',
+        anim: 'rubberband',
+      },
+      {
+        word: 'DICKHEAD\nARSEFACE\nWANKER',
+        size: 'clamp(36px, 11vw, 130px)',
+        gradient: 'linear-gradient(90deg,#ff4e50,#fc913a,#f9d62e,#76b852,#00c3ff,#a855f7,#ff69b4,#ff4e50,#fc913a)',
+        subtitle: 'legendary. a true masterpiece. 🏆',
+        btnLabel: 'THE FINAL BOSS',
+        btnSize: '24px', btnPad: '20px 44px',
+        btnBorder: '#00c3ff', btnColor: '#0284c7', btnBg: '#f0f9ff',
+        bg: '#f0f9ff',
+        sparks: { count: 180, dist: 440, size: 28, shapes: ['circle','square','triangle','star'] },
+        sound: 'orchestral',
+        anim: 'shake',
+        isLast: true,
+      },
+    ];
+
+    const colors = ['#ff4e50','#fc913a','#f9d62e','#76b852','#00c3ff','#a855f7','#ff69b4','#ff8c00','#e879f9','#34d399','#f472b6','#fbbf24'];
+
+    let audioCtx = null;
+    function getCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    // 1. Hotel desk DING
+    function playDing() {
+      const ctx = getCtx();
+      const t = ctx.currentTime;
+      // fundamental + harmonics for metallic bell
+      [[880,1],[1760,0.5],[2640,0.25],[3520,0.12]].forEach(([freq, vol]) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(vol * 0.5, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+        osc.start(t); osc.stop(t + 1.8);
+      });
+    }
+
+    // 2. Sad trombone wah-wah-waaah
+    function playSadTrombone() {
+      const ctx = getCtx();
+      const notes = [
+        [466, 0.0, 0.22],
+        [415, 0.22, 0.22],
+        [370, 0.44, 0.22],
+        [311, 0.66, 0.7],
+      ];
+      notes.forEach(([freq, offset, dur]) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass'; filter.frequency.value = freq * 1.5; filter.Q.value = 1.2;
+        osc.connect(filter); filter.connect(g); g.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq * 1.02, ctx.currentTime + offset);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.98, ctx.currentTime + offset + dur);
+        g.gain.setValueAtTime(0, ctx.currentTime + offset);
+        g.gain.linearRampToValueAtTime(0.3, ctx.currentTime + offset + 0.04);
+        g.gain.setValueAtTime(0.3, ctx.currentTime + offset + dur - 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + dur);
+        osc.start(ctx.currentTime + offset);
+        osc.stop(ctx.currentTime + offset + dur + 0.05);
+      });
+    }
+
+    // 3. Dial-up modem scream
+    function playDialup() {
+      const ctx = getCtx();
+      const dur = 1.4;
+      // carrier tones that sweep and screech
+      const tones = [
+        { start: 300, end: 2400, offset: 0,    type: 'sawtooth' },
+        { start: 2100, end: 600, offset: 0.15, type: 'square'   },
+        { start: 1200, end: 2800, offset: 0.3, type: 'sawtooth' },
+        { start: 2800, end: 400, offset: 0.5,  type: 'square'   },
+        { start: 800, end: 3200, offset: 0.7,  type: 'sawtooth' },
+      ];
+      tones.forEach(({ start, end, offset, type }) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 0.6;
+        osc.connect(f); f.connect(g); g.connect(ctx.destination);
+        osc.type = type;
+        const t0 = ctx.currentTime + offset;
+        const len = dur - offset;
+        osc.frequency.setValueAtTime(start, t0);
+        osc.frequency.exponentialRampToValueAtTime(end, t0 + len * 0.7);
+        osc.frequency.setValueAtTime(end, t0 + len * 0.7);
+        g.gain.setValueAtTime(0.08, t0);
+        g.gain.setValueAtTime(0.08, t0 + len - 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + len);
+        osc.start(t0); osc.stop(t0 + len + 0.05);
+      });
+    }
+
+    // 4. Game show WRONG buzzer
+    function playBuzzer() {
+      const ctx = getCtx();
+      const t = ctx.currentTime;
+      // harsh descending buzz
+      [0, 0.18, 0.36].forEach((offset, i) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(180 - i * 20, t + offset);
+        osc.frequency.exponentialRampToValueAtTime(80 - i * 10, t + offset + 0.16);
+        g.gain.setValueAtTime(0.4, t + offset);
+        g.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.18);
+        osc.start(t + offset); osc.stop(t + offset + 0.2);
+      });
+      // low thud
+      const sub = ctx.createOscillator();
+      const sg = ctx.createGain();
+      sub.connect(sg); sg.connect(ctx.destination);
+      sub.type = 'sine'; sub.frequency.setValueAtTime(60, t + 0.4);
+      sub.frequency.exponentialRampToValueAtTime(20, t + 0.75);
+      sg.gain.setValueAtTime(0.6, t + 0.4);
+      sg.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+      sub.start(t + 0.4); sub.stop(t + 0.8);
+    }
+
+    // 5. Wilhelm scream (synthesised)
+    function playWilhelm() {
+      const ctx = getCtx();
+      const t = ctx.currentTime;
+      // pitched squeal sweep up then terror drop
+      const osc = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const g = ctx.createGain();
+      const g2 = ctx.createGain();
+      const vib = ctx.createOscillator();
+      const vibGain = ctx.createGain();
+      vib.connect(vibGain); vibGain.connect(osc.frequency);
+      vib.frequency.value = 7; vibGain.gain.value = 18;
+      vib.start(t + 0.1); vib.stop(t + 0.9);
+      osc.connect(g); g.connect(ctx.destination);
+      osc2.connect(g2); g2.connect(ctx.destination);
+      osc.type = 'sawtooth'; osc2.type = 'square';
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.exponentialRampToValueAtTime(900, t + 0.15);
+      osc.frequency.exponentialRampToValueAtTime(250, t + 0.7);
+      osc2.frequency.setValueAtTime(400, t);
+      osc2.frequency.exponentialRampToValueAtTime(900, t + 0.15);
+      osc2.frequency.exponentialRampToValueAtTime(250, t + 0.7);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.35, t + 0.04);
+      g.gain.setValueAtTime(0.35, t + 0.6);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+      g2.gain.setValueAtTime(0, t);
+      g2.gain.linearRampToValueAtTime(0.12, t + 0.04);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+      osc.start(t); osc.stop(t + 0.9);
+      osc2.start(t); osc2.stop(t + 0.9);
+    }
+
+    // 6. Nuclear siren wind-up
+    function playSiren() {
+      const ctx = getCtx();
+      const t = ctx.currentTime;
+      const dur = 1.6;
+      [0, 0.55, 1.1].forEach((offset, i) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        const cycleLen = 0.5;
+        osc.frequency.setValueAtTime(220, t + offset);
+        osc.frequency.exponentialRampToValueAtTime(880, t + offset + cycleLen * 0.6);
+        osc.frequency.exponentialRampToValueAtTime(440, t + offset + cycleLen);
+        g.gain.setValueAtTime(0, t + offset);
+        g.gain.linearRampToValueAtTime(0.25, t + offset + 0.04);
+        g.gain.setValueAtTime(0.25, t + offset + cycleLen - 0.04);
+        g.gain.exponentialRampToValueAtTime(0.001, t + offset + cycleLen + 0.02);
+        osc.start(t + offset); osc.stop(t + offset + cycleLen + 0.05);
+      });
+    }
+
+    // 7. Dramatic orchestral stab + glass shatter
+    function playOrchestral() {
+      const ctx = getCtx();
+      const t = ctx.currentTime;
+      // big chord stab: C E G B
+      [261, 330, 392, 494, 523, 659].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = i % 2 === 0 ? 'sawtooth' : 'triangle';
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.22, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+        osc.start(t); osc.stop(t + 1.4);
+      });
+      // sub boom
+      const sub = ctx.createOscillator();
+      const sg = ctx.createGain();
+      sub.connect(sg); sg.connect(ctx.destination);
+      sub.type = 'sine'; sub.frequency.setValueAtTime(55, t);
+      sub.frequency.exponentialRampToValueAtTime(20, t + 0.6);
+      sg.gain.setValueAtTime(0.9, t);
+      sg.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+      sub.start(t); sub.stop(t + 0.7);
+      // glass shatter — high noise burst
+      const bufSize = Math.floor(ctx.sampleRate * 0.6);
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSize, 0.6);
+      }
+      const noise = ctx.createBufferSource();
+      const nf = ctx.createBiquadFilter();
+      const ng = ctx.createGain();
+      nf.type = 'highpass'; nf.frequency.value = 4000;
+      noise.buffer = buf;
+      noise.connect(nf); nf.connect(ng); ng.connect(ctx.destination);
+      ng.gain.setValueAtTime(0.5, t + 0.05);
+      ng.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+      noise.start(t + 0.05);
+    }
+
+    const soundMap = {
+      ding: playDing,
+      sadtrombone: playSadTrombone,
+      dialup: playDialup,
+      buzzer: playBuzzer,
+      wilhelm: playWilhelm,
+      siren: playSiren,
+      orchestral: playOrchestral,
+    };
+
+    function playSound(type) {
+      try { soundMap[type]?.(); } catch(e) {}
+    }
+
+    function makeSpark(x, y, shapes) {
+      const s = document.createElement('div');
+      s.className = 'spark';
+      const shape = shapes[Math.floor(Math.random() * shapes.length)];
+      const angle = Math.random() * 360;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const size = 6 + Math.random() * 14;
+      const dr = (Math.random() - 0.5) * 720 + 'deg';
+      if (shape === 'circle') {
+        s.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color}`;
+      } else if (shape === 'square') {
+        s.style.cssText = `width:${size}px;height:${size}px;border-radius:2px;background:${color}`;
+      } else if (shape === 'triangle') {
+        s.style.cssText = `width:0;height:0;border-left:${size/2}px solid transparent;border-right:${size/2}px solid transparent;border-bottom:${size}px solid ${color};background:transparent`;
+      } else if (shape === 'star') {
+        s.style.cssText = `width:${size}px;height:${size}px;background:${color};clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)`;
+      }
+      return s;
+    }
+
+    function burst(x, y, count, dist, size, shapes) {
+      sparks.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const s = makeSpark(x, y, shapes);
+        const angle = (i / count) * 360 + Math.random() * 14;
+        const d = dist * (0.45 + Math.random() * 0.95);
+        const dx = Math.cos(angle * Math.PI / 180) * d + 'px';
+        const dy = Math.sin(angle * Math.PI / 180) * d + 'px';
+        const dr = (Math.random() - 0.5) * 720 + 'deg';
+        s.style.position = 'absolute';
+        s.style.left = x + 'px';
+        s.style.top = y + 'px';
+        s.style.setProperty('--dx', dx);
+        s.style.setProperty('--dy', dy);
+        s.style.setProperty('--dr', dr);
+        s.style.animationDelay = Math.random() * 0.14 + 's';
+        s.style.animationDuration = (0.65 + Math.random() * 0.65) + 's';
+        sparks.appendChild(s);
+      }
+    }
+
+    let step = 0;
+
+    function doStep() {
+      const idx = Math.min(step, steps.length - 1);
+      const s = steps[idx];
+
+      playSound(s.sound);
+
+      const rect = btn.getBoundingClientRect();
+      const wrapRect = document.getElementById('wrapper').getBoundingClientRect();
+      burst(
+        rect.left - wrapRect.left + rect.width  / 2,
+        rect.top  - wrapRect.top  + rect.height / 2,
+        s.sparks.count, s.sparks.dist, s.sparks.size, s.sparks.shapes
+      );
+
+      document.body.style.background = s.bg;
+
+      word.classList.remove('show', 'boing', 'shake', 'rubberband');
+      word.style.fontSize = '0px';
+      void word.offsetWidth;
+
+      word.textContent = s.word;
+      word.style.backgroundImage = s.gradient;
+      word.classList.add('show');
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        word.style.fontSize = s.size;
+        word.classList.add(s.anim);
+      }));
+
+      setTimeout(() => word.classList.remove('boing', 'shake', 'rubberband'), 700);
+
+      subtitle.textContent  = s.subtitle;
+      btn.textContent       = s.btnLabel;
+      btn.style.fontSize    = s.btnSize;
+      btn.style.padding     = s.btnPad;
+      btn.style.borderColor = s.btnBorder;
+      btn.style.color       = s.btnColor;
+      btn.style.background  = s.btnBg;
+      btn.style.boxShadow   = `0 4px 0 ${s.btnBorder}`;
+
+      if (s.isLast) {
+        replay.classList.add('visible');
+      }
+
+      step++;
+    }
+
+    btn.addEventListener('click', doStep);
+
+    replay.addEventListener('click', () => {
+      step = 0;
+      replay.classList.remove('visible');
+      sparks.innerHTML = '';
+
+      word.classList.remove('show', 'boing', 'shake', 'rubberband');
+      word.style.fontSize = '0px';
+      word.textContent = '';
+
+      document.body.style.background = '#fff8fe';
+      subtitle.textContent  = 'a very innocent little button';
+      btn.textContent       = 'press me';
+      btn.style.fontSize    = '22px';
+      btn.style.padding     = '16px 44px';
+      btn.style.borderColor = '#ff9de2';
+      btn.style.color       = '#c026a0';
+      btn.style.background  = '#fff0fa';
+      btn.style.boxShadow   = '0 4px 0 #ff9de2';
+    });
+  </script>
+</body>
+</html>
